@@ -6,23 +6,24 @@ output: github_document
 ```{r setup, include=FALSE}
 library(tidyr)
 library(dplyr)
+library(tidyverse)
 ```
 
 #Problem1 
 ```{r}
-data1 <- read.csv("NYC_Transit_Subway_Entrance_And_Exit_Data.csv", header = T)
+data1 <- read_csv("NYC_Transit_Subway_Entrance_And_Exit_Data.csv")
+
 transit_new <- data1 %>%
-  select(Line, Station.Name, Station.Latitude, Station.Longitude, Route1:Route11, Entry, Vending, Entrance.Type, ADA) %>%
+  select(Line, `Station Name`, `Station Latitude`, `Station Longitude`, Route1:Route11, Entry, Vending, `Entrance Type`, ADA) %>%
   mutate(across(starts_with("Route8"):starts_with("Route11"), as.character),
          Entry = ifelse(Entry == "YES", TRUE, FALSE)) %>%
   pivot_longer(cols = starts_with("Route"),
                names_to = "Route_Number",   
                values_to = "Route") %>%
   distinct()
-View(transit_new)
+
 dim(transit_new)
 str(transit_new)
-
 ```
 
 The NYC Transit dataset contains `r nrow(data)` rows and `r ncol(data)` columns, giving us detailed info about subway entrances and exits. Key variables include `line`, `station_name`, `latitude`, `longitude`, `routes_served`, `entry`, `vending`, `entrance_type`, and `ADA_compliance`. I converted entry from a character format `("YES"/"NO")` to a logical format `(TRUE/FALSE)` using `ifelse` in R. For cleaning, I kept only the relevant columns mentioned above. The data looks tidy—each row is one observation of an entrance or exit, with each variable neatly in its own column.
@@ -31,7 +32,7 @@ The NYC Transit dataset contains `r nrow(data)` rows and `r ncol(data)` columns,
 #1. How many distinct stations are there?
 ```{r}
 distinct_stations <- transit_new %>%
-  distinct(Line, Station.Name) %>%
+  distinct(Line, `Station Name`) %>%
   count()
 print(distinct_stations)
 ```
@@ -41,7 +42,7 @@ print(distinct_stations)
 ```{r}
 ada_compliant_stations_count <- transit_new %>%
   filter(ADA == TRUE) %>%                         
-  distinct(Line, Station.Name) %>%                 
+  distinct(Line, `Station Name`) %>%                 
   nrow()                                           
 
 print(ada_compliant_stations_count)
@@ -69,7 +70,7 @@ distinct_a_stations <- data1 %>%
     values_to = "route"              
   ) %>%
   filter(route == "A") %>%
-  select(Station.Name, Line) %>%  
+  select(`Station Name`, Line) %>%  
   distinct()
 
 nrow(distinct_a_stations)
@@ -85,8 +86,8 @@ distinct_a_stations_ada <- data1 %>%
     names_to = "route_num",
     values_to = "route"
   ) %>%
-  filter(route == "A", ADA == TRUE) %>%  # Filter for ADA compliance
-  select(Station.Name, Line) %>%
+  filter(route == "A", ADA == TRUE) %>%  
+  select(`Station Name`, Line) %>%
   distinct()
 
 nrow(distinct_a_stations_ada)
@@ -94,5 +95,157 @@ nrow(distinct_a_stations_ada)
 
 #answer:Of the stations that serve the A train, 17 stations are ADA compliant.
 
+#Problem 2
+#Read and clean the Mr. Trash Wheel dataset
+```{r}
+library(readxl)
+problem2 <- read_excel("202409 Trash Wheel Collection Data.xlsx", sheet = "Mr. Trash Wheel")
+head(problem2)
+
+mr_trash <- problem2 %>%
+  select(Dumpster, Month, Year, Date, `Weight (tons)`, `Plastic Bottles`, 
+         `Cigarette Butts`, `Plastic Bags`, `Sports Balls`) %>%
+  mutate(Year =  as.character(Year))
+mr_trash$`Sports Balls` <- as.integer(round(mr_trash$`Sports Balls`))
+mr_trash <- mr_trash %>%
+  slice(1:(n() - 2)) 
+```
+#Read and clean the Professor Trash Wheel dataset
+```{r}
+problem2_1 <- read_excel("202409 Trash Wheel Collection Data.xlsx", sheet = "Professor Trash Wheel")
+
+professor_trash <- problem2_1 %>%
+  select(Dumpster, Month, Year, Date, `Weight (tons)`, `Plastic Bottles`, 
+         `Cigarette Butts`, `Plastic Bags`, Wrappers) %>%
+  mutate(Year = as.character(Year))
+professor_trash <- professor_trash %>%
+  slice(1:(n() - 3))
+```
+
+#Read and clean the Gwynnda dataset
+```{r}
+problem2_2 <- read_excel("202409 Trash Wheel Collection Data.xlsx", sheet = "Gwynnda Trash Wheel")
+
+gwynnda_trash <- problem2_2 %>%
+  select(Dumpster, Month, Year, Date, `Weight (tons)`, `Plastic Bottles`, 
+         `Cigarette Butts`, `Plastic Bags`, Wrappers) %>%
+  mutate(Year = as.character(Year))
+gwynnda_trash <- gwynnda_trash %>%
+  slice(1:(n() - 1))
+```
+
+#Combine the datasets
+```{r}
+mr_trash <- mr_trash %>% mutate(source = "Mr. Trash")
+professor_trash <- professor_trash %>% mutate(source = "Professor Trash")
+gwynnda_trash <- gwynnda_trash %>% mutate(source = "Gwynnda Trash")
+```
+
+# Combine the datasets into a single tidy dataset
+```{r}
+combined_trash_data <- bind_rows(mr_trash, professor_trash, gwynnda_trash)
+dim(combined_trash_data)
+
+total_weight_professor_trash <- combined_trash_data %>%
+  filter(source == "Professor Trash") %>%
+  summarize(total_weight = sum(`Weight (tons)`, na.rm = TRUE))
+
+print(total_weight_professor_trash)
+
+total_cigarette_butts <- combined_trash_data %>%
+  filter(source == "Gwynnda Trash") %>%
+  summarize(total_cigarette = sum(`Cigarette Butts`, na.rm = TRUE))
+
+print(total_cigarette_butts)
+```
+
+The combined dataset from Mr. Trash Wheel, Professor Trash Wheel, and Gwynnda consists of `r nrow(combined_trash_data)` observations. It includes key variables such as Date, Dumpster, total_weight (the weight of trash in tons), sports_balls (the number of sports balls collected), and cigarette_butts (the number of cigarette butts collected). Each observation corresponds to the trash collected by one of the trash wheels on a specific date. For example, Professor Trash Wheel collected a total of `r total_weight_professor_trash` tons of trash, while Gwynnda collected `r total_cigarette_butts` cigarette butts in June 2022. These data provide a detailed look at the significant efforts of these trash wheels in reducing waste in the Baltimore harbor.
 
 
+#Problem 3
+#Import the datasets
+```{r}
+bakers <- read_csv("gbb_datasets/bakers.csv")
+bakes <- read_csv("gbb_datasets/bakes.csv")
+results <- read_csv("gbb_datasets/results.csv", skip = 2)
+```
+
+#check variable types - everything looks good 
+```{r}
+str(bakers)
+bakers <- bakers %>%
+  rename(baker_name = `Baker Name`,
+         series = Series,
+         baker_age = `Baker Age`,
+         baker_occupation = `Baker Occupation`,
+         hometown = Hometown)
+```
+
+
+```{r}
+str(bakes)
+bakes <- bakes %>%
+  rename(series = Series,
+         episode = Episode,
+         baker = Baker,
+         signature_bake = `Signature Bake`,
+         show_stopper = `Show Stopper`)
+```
+
+```{r}
+str(results)
+bakers <- bakers %>%
+  separate(baker_name, into = c("baker", "last name"), sep = " ")
+```
+#combine bakers & bake
+```{r}
+combined_data <- bakers %>%
+  left_join(bakes, by = c("baker", "series")) 
+
+```
+
+#combine all
+```{r}
+final_combine <- left_join(combined_data, results, by = c("baker", "episode", "series")) %>%
+  janitor::clean_names() %>%
+  relocate(baker, series, episode)
+
+write_csv(final_combine, "./gbb_datasets/final_combine.csv")
+```
+
+#Describe your data cleaning process, including any questions you have or choices you made. Briefly discuss the final dataset.
+
+The data cleaning process began by importing the `bakers.csv`, `bakes.csv`, and `results.csv` datasets, skipping the first two lines of `results.csv` as they didn’t contain column names. I checked the structure of each dataset to ensure consistent variable types, renaming columns for clarity (e.g., `Baker.Name` to `baker_name`). In the `bakers` dataset, I split `baker_name` into `baker` and `last_name` for easier merging. I then combined the datasets using `left_join()` on `baker`, `series`, and `episode`. After merging, I applied `janitor::clean_names()` to standardize column names and reordered key variables. The final dataset is tidy and includes important variables like `baker`, `series`, `episode`, and performance details such as `technical_rank` and `star_baker`, ready for analysis.
+
+# Filter for seasons 5 through 10 and where result is "Star Baker"
+```{r}
+star_bakers <- final_combine %>%
+  filter(series >= 5 & series <= 10,result %in% c("STAR BAKER","WINNER")) %>%
+  select(baker, series, episode,result) %>%
+arrange(series, episode)
+star_bakers
+```
+#Based on the table, Richard stood out as a highly consistent contestant in Season 5, earning the title of Star Baker an impressive five times, which made him a predictable contender for the overall win. However, despite his strong performance, Nancy ultimately emerged as the winner of Season 5, which could be considered a surprise given Richard’s consistent dominance throughout the season. This dynamic highlights how, even with strong individual performances, the competition can still yield unexpected results.
+
+
+#convert values to numeric
+```{r}
+viewers <- read_csv("gbb_datasets/viewers.csv")
+data_cleaned <- viewers %>%
+  mutate(across(starts_with("Series"), ~ as.numeric(as.character(.))))
+print(data_cleaned)
+```
+
+# average viewership season 1
+```{r}
+average_viewership_season_1 <- mean(data_cleaned$`Series 1`, na.rm = TRUE)
+print(average_viewership_season_1)
+```
+#For Season 1, the average viewership was 2.77 
+
+# average viewership season 5
+```{r}
+average_viewership_season_5 <- mean(data_cleaned$`Series 5`, na.rm = TRUE)
+print(average_viewership_season_5)
+```
+#For Season 5, the average viewership was 10.0393
